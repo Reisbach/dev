@@ -8,15 +8,17 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
     <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Anton&family=Permanent+Marker&family=Inter:wght@400;700;900&display=swap');
 
-        /* Das Farb-Schema aus deinem Bild */
         :root {
             --sunset-purple: #4c1d95;
             --sunset-orange: #f97316;
@@ -31,7 +33,6 @@
             color: #fff;
         }
 
-        /* Graffiti Font */
         .font-graffiti { font-family: 'Permanent Marker', cursive; }
         .font-headline { font-family: 'Anton', sans-serif; }
 
@@ -52,7 +53,6 @@
             position: relative;
         }
 
-        /* Graffiti Text Outline */
         .text-stroke {
             -webkit-text-stroke: 2px black;
             color: white;
@@ -62,31 +62,31 @@
         .toast-slide { animation: slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes slideDown { from { transform: translate(-50%, -200%); } to { transform: translate(-50%, 20px); } }
 
-        /* Flag Animation */
         @keyframes hoist { 0% { transform: translateY(110%); } 100% { transform: translateY(0); } }
         .animate-hoist { animation: hoist 3s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
     </style>
 </head>
 <body class="min-h-screen pb-24">
     <div class="berlin-sky"></div>
-    <div style="position: fixed; bottom: 0; left: 0; width: 100%; height: 30vh; background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Skyline_Berlin.svg/2560px-Skyline_Berlin.svg.png') repeat-x bottom center; background-size: cover; opacity: 0.3; z-index: -1; filter: brightness(0);"></div>
+    <div style="position: fixed; bottom: 0; left: 0; width: 100%; height: 35vh; background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Skyline_Berlin.svg/2560px-Skyline_Berlin.svg.png') repeat-x bottom center; background-size: cover; opacity: 0.3; z-index: -1; filter: brightness(0);"></div>
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
-
-        // --- ICONS & ASSETS ---
+        
+        // --- SICHERHEITS-CHECK ---
+        // Wir warten bis Recharts wirklich da ist, bevor wir es nutzen
+        
+        // Assets
         const TvTowerSVG = () => (
             <svg viewBox="0 0 100 300" className="w-full h-full drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]">
-                <line x1="50" y1="10" x2="50" y2="80" stroke="white" strokeWidth="2" /> {/* Antenne */}
-                <circle cx="50" cy="90" r="18" fill="white" /> {/* Kugel */}
-                <path d="M40 110 L60 110 L80 280 L20 280 Z" fill="white" /> {/* Schaft */}
+                <line x1="50" y1="10" x2="50" y2="80" stroke="white" strokeWidth="2" />
+                <circle cx="50" cy="90" r="18" fill="white" />
+                <path d="M40 110 L60 110 L80 280 L20 280 Z" fill="white" />
             </svg>
         );
 
-        // --- ANIMATION COMPONENT ---
         const Celebration = ({ onComplete }) => {
             useEffect(() => { const t = setTimeout(onComplete, 3500); return () => clearTimeout(t); }, [onComplete]);
             return (
@@ -96,13 +96,11 @@
                             BERLIN<br/>LEBT!
                         </h1>
                     </div>
-                    {/* Fahnenmast */}
                     <div className="w-3 h-full bg-zinc-700 border-x border-zinc-900 relative z-10"></div>
-                    {/* Fahne */}
                     <div className="absolute bottom-10 animate-hoist z-10" style={{ left: '50%' }}>
                         <div className="ml-1 w-64 h-40 bg-white flex items-center justify-center shadow-2xl relative border-2 border-black">
-                            <div className="absolute inset-0 border-y-8 border-red-600"></div> {/* Berlin Flagge Style */}
-                            <span className="text-6xl">🐻</span> {/* Der Berliner Bär */}
+                            <div className="absolute inset-0 border-y-8 border-red-600"></div>
+                            <span className="text-6xl">🐻</span>
                         </div>
                     </div>
                 </div>
@@ -132,7 +130,12 @@
             const [showCeleb, setShowCeleb] = useState(false);
 
             useEffect(() => {
-                const check = setInterval(() => { if (window.Recharts) { setReady(true); clearInterval(check); } }, 100);
+                const check = setInterval(() => { 
+                    if (window.Recharts && window.Recharts.LineChart) { 
+                        setReady(true); 
+                        clearInterval(check); 
+                    } 
+                }, 100);
                 return () => clearInterval(check);
             }, []);
 
@@ -249,6 +252,9 @@
 
             if (!ready) return <div className="h-screen flex items-center justify-center text-white font-graffiti text-3xl animate-pulse">Lade Kiez...</div>;
 
+            // Destructuring erst HIER, wenn ready true ist
+            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
+
             const chartData = Array.from({ length: gameCount + 1 }, (_, i) => {
                 const row = { name: i };
                 players.forEach(p => {
@@ -263,9 +269,7 @@
                     {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
                     {showCeleb && <Celebration onComplete={() => setShowCeleb(false)} />}
 
-                    {/* --- HEADER BEREICH --- */}
                     <header className="text-center py-10 relative">
-                        {/* Fernsehturm Hintergrund-Grafik (absolut positioniert) */}
                         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -z-10 opacity-30 w-32 md:w-48 h-96">
                             <TvTowerSVG />
                         </div>
@@ -279,7 +283,6 @@
                         </div>
                     </header>
 
-                    {/* --- STATISTIKEN (Graffiti Wall) --- */}
                     <div className="grid grid-cols-3 gap-4">
                         <div className="concrete-wall p-4 flex flex-col items-center justify-center text-black transform rotate-1 group hover:scale-105 transition-transform">
                             <div className="font-graffiti text-xs text-gray-500 mb-1">KIEZ KÖNIG</div>
@@ -298,10 +301,7 @@
                         </div>
                     </div>
 
-                    {/* --- HAUPTBEREICH (DIE MAUER) --- */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        
-                        {/* SPIELERLISTE */}
                         <div className="concrete-wall p-6 min-h-[300px]">
                             <h2 className="font-graffiti text-3xl text-black mb-6 transform -rotate-2 inline-block border-b-4 border-[#ff0033]">
                                 DIE ATZEN
@@ -330,15 +330,12 @@
                             </div>
                         </div>
 
-                        {/* STEUERUNG */}
                         <div className="flex flex-col gap-6">
-                            {/* Mode Switcher */}
                             <div className="bg-black p-2 flex gap-2 rounded-lg shadow-2xl border border-white/20">
                                 <button onClick={() => {setMode('normal'); setWinners([]); setLosers([]);}} className={`flex-1 py-3 font-headline text-xl tracking-wider transition-all rounded ${mode === 'normal' ? 'bg-[#ff0033] text-white' : 'text-gray-500 hover:text-white'}`}>SAUSPIEL</button>
                                 <button onClick={() => {setMode('solo'); setWinners([]); setLosers([]);}} className={`flex-1 py-3 font-headline text-xl tracking-wider transition-all rounded ${mode === 'solo' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-white'}`}>SOLO</button>
                             </div>
 
-                            {/* Selection Grid */}
                             <div className="concrete-wall p-4 grid grid-cols-2 gap-4">
                                 <div>
                                     <p className="font-mono text-[10px] text-black text-center mb-2 uppercase tracking-widest">Gewinner</p>
@@ -362,7 +359,6 @@
                                 </div>
                             </div>
 
-                            {/* Action Area */}
                             <div className="flex gap-4">
                                 <div className="bg-black border-2 border-white/30 rounded w-24 flex items-center justify-center relative">
                                     <span className="absolute top-1 left-2 text-[8px] text-gray-400">TARIF</span>
@@ -375,7 +371,6 @@
                         </div>
                     </div>
 
-                    {/* GRAPH */}
                     {gameCount > 0 && (
                         <div className="bg-black/80 backdrop-blur border border-white/10 p-4 rounded-xl shadow-2xl">
                             <h3 className="text-center font-mono text-xs text-gray-400 mb-4 tracking-[0.5em] uppercase">Spielverlauf</h3>
