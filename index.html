@@ -3,178 +3,117 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Schafkopf - ZK der SED</title>
+    <title>Schafkopf Berlin Edition</title>
     
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-    
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Russo+One&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Permanent+Marker&family=Inter:wght@400;700;900&display=swap');
 
+        /* Das Farb-Schema aus deinem Bild */
         :root {
-            --ddr-grey: #e0e0d1;
-            --ddr-red: #cc0000;
-            --ddr-mustard: #e6b800;
-            --ddr-blue: #0066cc;
-            --concrete: #2c2c2c;
+            --sunset-purple: #4c1d95;
+            --sunset-orange: #f97316;
+            --wall-grey: #d4d4d8;
+            --berlin-red: #ff0033;
         }
 
         body {
-            background-color: #2a2a2a;
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
-            font-family: 'Courier Prime', monospace;
-            color: var(--ddr-grey);
+            background-color: #111;
+            font-family: 'Inter', sans-serif;
             overflow-x: hidden;
+            color: #fff;
         }
 
-        .font-propaganda { font-family: 'Russo One', sans-serif; }
-        
-        .paper-border {
-            border: 2px solid #555;
-            background-color: #333;
-            box-shadow: 4px 4px 0px 0px #111;
+        /* Graffiti Font */
+        .font-graffiti { font-family: 'Permanent Marker', cursive; }
+        .font-headline { font-family: 'Anton', sans-serif; }
+
+        /* Background Gradient (Sunset) */
+        .berlin-sky {
+            background: linear-gradient(to bottom, #2e1065 0%, #7c3aed 40%, #fb923c 80%, #111 100%);
+            position: fixed;
+            top: 0; left: 0; right: 0; height: 100vh;
+            z-index: -2;
         }
 
-        .stamp-box {
-            border: 2px solid var(--ddr-red);
-            color: var(--ddr-red);
-            transform: rotate(-2deg);
-            display: inline-block;
-            padding: 2px 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            opacity: 0.8;
-            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><filter id='noise'><feTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='1' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23noise)' opacity='0.5'/></svg>");
-        }
-        
-        /* FLAG RAISING ANIMATION */
-        @keyframes hoist {
-            0% { transform: translateY(110%); }
-            100% { transform: translateY(0); }
-        }
-        
-        @keyframes fadeInRed {
-            0% { background-color: rgba(0,0,0,0); }
-            100% { background-color: rgba(100,0,0,0.4); }
+        /* Concrete Texture for the Wall */
+        .concrete-wall {
+            background-color: #e5e5e5;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.15'/%3E%3C/svg%3E");
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #fff;
+            position: relative;
         }
 
-        @keyframes textRise {
-            0% { opacity: 0; transform: translateY(20px) scale(0.9); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .animate-hoist {
-            animation: hoist 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        /* Graffiti Text Outline */
+        .text-stroke {
+            -webkit-text-stroke: 2px black;
+            color: white;
+            paint-order: stroke fill;
         }
         
-        .animate-fade-red {
-            animation: fadeInRed 0.5s forwards;
-        }
+        .toast-slide { animation: slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes slideDown { from { transform: translate(-50%, -200%); } to { transform: translate(-50%, 20px); } }
 
-        .animate-text-rise {
-            animation: textRise 1s ease-out 0.5s forwards;
-            opacity: 0;
-        }
+        /* Flag Animation */
+        @keyframes hoist { 0% { transform: translateY(110%); } 100% { transform: translateY(0); } }
+        .animate-hoist { animation: hoist 3s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
     </style>
 </head>
 <body class="min-h-screen pb-24">
+    <div class="berlin-sky"></div>
+    <div style="position: fixed; bottom: 0; left: 0; width: 100%; height: 30vh; background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Skyline_Berlin.svg/2560px-Skyline_Berlin.svg.png') repeat-x bottom center; background-size: cover; opacity: 0.3; z-index: -1; filter: brightness(0);"></div>
+
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
 
-        // --- CUSTOM ICONS ---
-        
-        const AmpelManGreen = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <path d="M12 2C10 2 9 3 9 4H15C15 3 14 2 12 2M10 5H14V7H16L17 11H14V14H16L18 22H15L14 16H10L9 22H6L8 14H6V11H7L8 7V5H10Z" />
+        // --- ICONS & ASSETS ---
+        const TvTowerSVG = () => (
+            <svg viewBox="0 0 100 300" className="w-full h-full drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]">
+                <line x1="50" y1="10" x2="50" y2="80" stroke="white" strokeWidth="2" /> {/* Antenne */}
+                <circle cx="50" cy="90" r="18" fill="white" /> {/* Kugel */}
+                <path d="M40 110 L60 110 L80 280 L20 280 Z" fill="white" /> {/* Schaft */}
             </svg>
         );
 
-        const AmpelManRed = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-                <path d="M12 2C10 2 9 3 9 4H15C15 3 14 2 12 2M8 5H16V9H19L18 12H15V22H13V14H11V22H9H9L6 12H5L6 9V5H8Z" />
-            </svg>
-        );
-
-        const TrabiIcon = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M3 12h18l-2-5H5l-2 5z" />
-                <rect x="3" y="12" width="18" height="6" rx="2" />
-                <circle cx="6" cy="18" r="2" />
-                <circle cx="18" cy="18" r="2" />
-            </svg>
-        );
-
-        const TvTower = ({ className }) => (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <line x1="12" y1="2" x2="12" y2="22" />
-                <circle cx="12" cy="8" r="3" />
-                <path d="M9 22h6" />
-                <path d="M12 11l-4 11" /><path d="M12 11l4 11" />
-            </svg>
-        );
-
-        // --- THE FLAG COMPONENT ---
-        const FlagRaising = ({ onComplete }) => {
-            useEffect(() => {
-                const t = setTimeout(onComplete, 3500); // Animation Dauer
-                return () => clearTimeout(t);
-            }, [onComplete]);
-
+        // --- ANIMATION COMPONENT ---
+        const Celebration = ({ onComplete }) => {
+            useEffect(() => { const t = setTimeout(onComplete, 3500); return () => clearTimeout(t); }, [onComplete]);
             return (
-                <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none animate-fade-red backdrop-blur-sm">
-                    {/* Background Rays */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-500/10 via-transparent to-transparent"></div>
-                    
-                    {/* Slogan */}
-                    <div className="absolute top-1/4 w-full text-center animate-text-rise z-20">
-                        <h1 className="text-4xl md:text-6xl font-propaganda text-[#e6b800] drop-shadow-[0_4px_0_#000] uppercase tracking-widest leading-tight">
-                            Für Frieden und<br/>Sozialismus!
+                <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none backdrop-blur-sm bg-black/40">
+                    <div className="absolute top-1/4 w-full text-center z-20 animate-bounce">
+                        <h1 className="text-6xl md:text-8xl font-graffiti text-[#ff0033] drop-shadow-[4px_4px_0_#fff] transform -rotate-3">
+                            BERLIN<br/>LEBT!
                         </h1>
-                        <p className="font-mono text-[#cc0000] bg-black inline-block px-4 py-1 mt-4">PLAN ERFÜLLT</p>
                     </div>
-
-                    {/* Pole */}
-                    <div className="w-2 md:w-4 h-full bg-gray-600 border-x border-gray-800 relative z-10"></div>
-
-                    {/* Flag Container - Moves Up */}
-                    <div className="absolute bottom-10 animate-hoist flex flex-col items-start z-10" style={{ left: '50%' }}>
-                        {/* The Flag SVG */}
-                        <svg width="300" height="200" viewBox="0 0 300 200" className="ml-1 drop-shadow-2xl">
-                            {/* Red Flag Cloth */}
-                            <path d="M0,0 C100,20 200,-20 300,0 V180 C200,160 100,200 0,180 Z" fill="#cc0000" />
-                            
-                            {/* Hammer & Sickle (Stylized) */}
-                            <g transform="translate(40, 30) scale(0.6)">
-                                <path fill="#e6b800" d="M50,10 L60,10 L55,40 L80,40 L80,50 L55,50 L55,80 L45,80 L45,50 L20,50 L20,40 L45,40 Z" /> {/* Hammerish */}
-                                <path fill="none" stroke="#e6b800" strokeWidth="8" d="M30,80 C10,60 10,20 40,10" /> {/* Sickleish */}
-                                <path fill="#e6b800" d="M50,0 L53,10 L62,10 L55,18 L58,28 L50,22 L42,28 L45,18 L38,10 L47,10 Z" transform="translate(30,-15)"/> {/* Star */}
-                            </g>
-                        </svg>
+                    {/* Fahnenmast */}
+                    <div className="w-3 h-full bg-zinc-700 border-x border-zinc-900 relative z-10"></div>
+                    {/* Fahne */}
+                    <div className="absolute bottom-10 animate-hoist z-10" style={{ left: '50%' }}>
+                        <div className="ml-1 w-64 h-40 bg-white flex items-center justify-center shadow-2xl relative border-2 border-black">
+                            <div className="absolute inset-0 border-y-8 border-red-600"></div> {/* Berlin Flagge Style */}
+                            <span className="text-6xl">🐻</span> {/* Der Berliner Bär */}
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        const Toast = ({ message, type, onClose }) => {
+        const Toast = ({ msg, type, onClose }) => {
             useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
-            const border = type === 'error' ? 'border-red-600 text-red-400' : 'border-green-600 text-green-400';
-            
             return (
-                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-4 bg-[#222] border-l-4 shadow-xl font-mono text-xs uppercase tracking-wider flex items-center gap-3 ${border}`}>
-                    <div className="bg-white/10 p-1 rounded">{type === 'error' ? '⚠️ MELDUNG' : '⭐ BEKANNTMACHUNG'}</div>
-                    {message}
+                <div className={`fixed top-0 left-1/2 z-50 px-6 py-3 font-graffiti text-xl tracking-wider shadow-xl transform -translate-x-1/2 toast-slide border-4 border-black text-black ${type === 'error' ? 'bg-rose-500' : 'bg-green-400'}`}>
+                    {msg}
                 </div>
             );
         };
@@ -182,29 +121,26 @@
         function App() {
             const [ready, setReady] = useState(false);
             const [players, setPlayers] = useState([]);
-            const [gameHistory, setGameHistory] = useState([]);
-            
             const [name, setName] = useState('');
             const [winners, setWinners] = useState([]);
             const [losers, setLosers] = useState([]);
             const [points, setPoints] = useState('10');
             const [mode, setMode] = useState('normal'); 
             const [gameCount, setGameCount] = useState(0);
+            const [gameHistory, setGameHistory] = useState([]);
             const [toast, setToast] = useState(null); 
-            const [showFlag, setShowFlag] = useState(false); // STATE FOR FLAG ANIMATION
+            const [showCeleb, setShowCeleb] = useState(false);
 
             useEffect(() => {
-                const check = setInterval(() => {
-                    if (window.Recharts) { setReady(true); clearInterval(check); }
-                }, 100);
+                const check = setInterval(() => { if (window.Recharts) { setReady(true); clearInterval(check); } }, 100);
                 return () => clearInterval(check);
             }, []);
 
             useEffect(() => {
                 try {
-                    const p = localStorage.getItem('ddr_sk_players');
-                    const c = localStorage.getItem('ddr_sk_count');
-                    const gh = localStorage.getItem('ddr_sk_history');
+                    const p = localStorage.getItem('berlin_pro_players');
+                    const c = localStorage.getItem('berlin_pro_count');
+                    const gh = localStorage.getItem('berlin_pro_history');
                     if (p) setPlayers(JSON.parse(p));
                     if (c) setGameCount(parseInt(c));
                     if (gh) setGameHistory(JSON.parse(gh));
@@ -213,29 +149,23 @@
 
             useEffect(() => {
                 if (players.length > 0 || gameCount > 0) {
-                    localStorage.setItem('ddr_sk_players', JSON.stringify(players));
-                    localStorage.setItem('ddr_sk_count', gameCount.toString());
-                    localStorage.setItem('ddr_sk_history', JSON.stringify(gameHistory));
+                    localStorage.setItem('berlin_pro_players', JSON.stringify(players));
+                    localStorage.setItem('berlin_pro_count', gameCount.toString());
+                    localStorage.setItem('berlin_pro_history', JSON.stringify(gameHistory));
                 }
             }, [players, gameCount, gameHistory]);
 
             const stats = useMemo(() => {
                 if (players.length === 0) return null;
-                let soloKing = { name: 'Niemand', count: 0 };
-                let highRoller = { name: 'Keiner', val: 0 };
-                let pechvogel = { name: 'Keiner', val: 0 };
+                let soloKing = { name: '-', count: 0 };
+                let highRoller = { name: '-', val: 0 };
+                let pechvogel = { name: '-', val: 0 };
 
                 const soloCounts = {};
-                gameHistory.forEach(game => {
-                    if (game.mode === 'solo') {
-                        game.winners.forEach(winner => {
-                            soloCounts[winner] = (soloCounts[winner] || 0) + 1;
-                        });
-                    }
+                gameHistory.forEach(g => {
+                    if (g.mode === 'solo') g.winners.forEach(w => soloCounts[w] = (soloCounts[w] || 0) + 1);
                 });
-                Object.entries(soloCounts).forEach(([name, count]) => {
-                    if (count > soloKing.count) soloKing = { name, count };
-                });
+                Object.entries(soloCounts).forEach(([n, c]) => { if (c > soloKing.count) soloKing = { name: n, count: c }; });
 
                 players.forEach(p => {
                     if (p.history.length > 1) {
@@ -252,32 +182,31 @@
             const showToast = (msg, type = 'success') => setToast({ msg, type });
 
             const addPlayer = () => {
-                if (!name.trim() || players.length >= 6) return showToast("Kollektiv ist voll!", "error");
+                if (!name.trim() || players.length >= 6) return;
                 setPlayers([...players, { name: name.trim(), points: 0, history: [{ round: 0, val: 0 }] }]);
                 setName('');
             };
 
             const kickPlayer = (idx) => {
-                if (confirm(`Genosse ${players[idx].name} wegen Republikflucht ausschließen?`)) {
+                if (confirm("Wirklich rauswerfen?")) {
                     setPlayers(players.filter((_, i) => i !== idx));
                     setWinners([]); setLosers([]);
                 }
             };
 
-            const toggleWinner = (pName) => {
-                if (losers.includes(pName)) return;
-                setWinners(prev => prev.includes(pName) ? prev.filter(x => x !== pName) : [...prev, pName]);
+            const toggleWinner = (p) => {
+                if (losers.includes(p)) return;
+                setWinners(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
             };
-
-            const toggleLoser = (pName) => {
-                if (winners.includes(pName)) return;
-                setLosers(prev => prev.includes(pName) ? prev.filter(x => x !== pName) : [...prev, pName]);
+            const toggleLoser = (p) => {
+                if (winners.includes(p)) return;
+                setLosers(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
             };
 
             const recordGame = () => {
                 const val = parseInt(points);
-                if (mode === 'normal' && (winners.length !== 2 || losers.length !== 2)) return showToast("Unvollständiges Kollektiv!", "error");
-                if (mode === 'solo' && !((winners.length === 1 && losers.length === 3) || (winners.length === 3 && losers.length === 1))) return showToast("Solo-Antrag fehlerhaft!", "error");
+                if (mode === 'normal' && (winners.length !== 2 || losers.length !== 2)) return showToast("2 gegen 2!", "error");
+                if (mode === 'solo' && !((winners.length === 1 && losers.length === 3) || (winners.length === 3 && losers.length === 1))) return showToast("1 gegen 3!", "error");
 
                 const nextRound = gameCount + 1;
                 const newGameEntry = { round: nextRound, mode, winners, losers, points: val };
@@ -300,15 +229,12 @@
                 setPlayers(newPlayers);
                 setGameCount(nextRound);
                 setWinners([]); setLosers([]);
-                
-                // HIER IST DIE ÄNDERUNG: KEIN KONFETTI, SONDERN FAHNE
-                setShowFlag(true); 
-                // showToast wird nicht benötigt, die Fahne sagt alles
+                setShowCeleb(true);
             };
 
             const undoLast = () => {
                 if (gameCount === 0) return;
-                if (confirm("Revision beantragen?")) {
+                if (confirm("Letztes Spiel löschen?")) {
                     const prevRound = gameCount - 1;
                     setGameHistory(gameHistory.filter(g => g.round <= prevRound));
                     setPlayers(players.map(p => ({
@@ -317,19 +243,11 @@
                         points: (p.history.find(h => h.round === prevRound) || {val: 0}).val
                     })));
                     setGameCount(prevRound);
-                    showToast("Eintrag revidiert.");
+                    showToast("Runde gelöscht");
                 }
             };
 
-            if (!ready) return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-[#2a2a2a] text-[#e0e0d1] font-mono space-y-4">
-                    <div className="border-2 border-red-600 p-4 animate-pulse uppercase font-bold tracking-widest text-red-500">
-                        Antrag wird bearbeitet...
-                    </div>
-                </div>
-            );
-
-            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
+            if (!ready) return <div className="h-screen flex items-center justify-center text-white font-graffiti text-3xl animate-pulse">Lade Kiez...</div>;
 
             const chartData = Array.from({ length: gameCount + 1 }, (_, i) => {
                 const row = { name: i };
@@ -341,187 +259,145 @@
             });
 
             return (
-                <div className="max-w-4xl mx-auto p-4 space-y-8">
-                    {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-                    {showFlag && <FlagRaising onComplete={() => setShowFlag(false)} />}
+                <div className="max-w-4xl mx-auto p-4 space-y-8 relative">
+                    {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+                    {showCeleb && <Celebration onComplete={() => setShowCeleb(false)} />}
 
-                    {/* HEADER */}
-                    <header className="flex flex-col items-center py-6 border-b-2 border-dashed border-[#555]">
-                        <div className="flex items-center gap-4">
-                            <div className="border-2 border-[#e6b800] p-2 rounded-full">
-                                <TvTower className="w-10 h-10 text-[#e6b800]" />
-                            </div>
-                            <div className="text-center">
-                                <h1 className="text-3xl md:text-5xl font-propaganda text-[#e0e0d1] uppercase tracking-wider">
-                                    ZK der <span className="text-[#cc0000]">Schafköpfe</span>
-                                </h1>
-                                <p className="font-mono text-xs text-[#888] tracking-[0.3em] uppercase mt-1">Sektion Ost-Berlin</p>
-                            </div>
-                            <div className="border-2 border-[#e6b800] p-2 rounded-full">
-                                <TrabiIcon className="w-10 h-10 text-[#e6b800]" />
-                            </div>
+                    {/* --- HEADER BEREICH --- */}
+                    <header className="text-center py-10 relative">
+                        {/* Fernsehturm Hintergrund-Grafik (absolut positioniert) */}
+                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -z-10 opacity-30 w-32 md:w-48 h-96">
+                            <TvTowerSVG />
+                        </div>
+                        
+                        <h1 className="font-headline text-7xl md:text-9xl tracking-tighter uppercase relative z-10 leading-none">
+                            <span className="text-[#ff0033] drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">BERLIN</span><br/>
+                            <span className="text-transparent text-stroke drop-shadow-xl">EDITION</span>
+                        </h1>
+                        <div className="mt-4 inline-block bg-black text-white px-4 py-1 font-mono text-sm tracking-[0.3em] uppercase border border-white">
+                            Schafkopf Underground
                         </div>
                     </header>
 
-                    {/* HALL OF FAME (DDR STYLE) */}
+                    {/* --- STATISTIKEN (Graffiti Wall) --- */}
                     <div className="grid grid-cols-3 gap-4">
-                        <div className="paper-border p-4 relative group">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#2a2a2a] px-2">
-                                <span className="text-[10px] text-[#888] uppercase tracking-widest">Held der Arbeit</span>
-                            </div>
-                            <div className="flex flex-col items-center mt-2">
-                                <div className="text-2xl font-bold text-[#e6b800]">{stats?.soloKing.name}</div>
-                                <div className="text-[10px] text-[#666] mt-1">{stats?.soloKing.count} Soli erfüllt</div>
-                            </div>
+                        <div className="concrete-wall p-4 flex flex-col items-center justify-center text-black transform rotate-1 group hover:scale-105 transition-transform">
+                            <div className="font-graffiti text-xs text-gray-500 mb-1">KIEZ KÖNIG</div>
+                            <div className="font-headline text-3xl text-[#ff0033]">{stats?.soloKing.name}</div>
+                            <div className="font-mono text-[10px] text-gray-600 border-t border-black mt-1 w-full text-center">{stats?.soloKing.count} Soli</div>
                         </div>
-                        <div className="paper-border p-4 relative group">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#2a2a2a] px-2">
-                                <span className="text-[10px] text-[#888] uppercase tracking-widest">Devisen-Horter</span>
-                            </div>
-                            <div className="flex flex-col items-center mt-2">
-                                <div className="text-2xl font-bold text-[#0066cc]">{stats?.highRoller.name}</div>
-                                <div className="text-[10px] text-[#666] mt-1">+{stats?.highRoller.val} Mark</div>
-                            </div>
+                        <div className="concrete-wall p-4 flex flex-col items-center justify-center text-black transform -rotate-1 group hover:scale-105 transition-transform">
+                            <div className="font-graffiti text-xs text-gray-500 mb-1">DER BONZE</div>
+                            <div className="font-headline text-3xl text-purple-600">{stats?.highRoller.name}</div>
+                            <div className="font-mono text-[10px] text-gray-600 border-t border-black mt-1 w-full text-center">+{stats?.highRoller.val} €</div>
                         </div>
-                        <div className="paper-border p-4 relative group">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#2a2a2a] px-2">
-                                <span className="text-[10px] text-[#cc0000] uppercase tracking-widest">Klassenfeind</span>
-                            </div>
-                            <div className="flex flex-col items-center mt-2">
-                                <div className="text-2xl font-bold text-[#cc0000]">{stats?.pechvogel.name}</div>
-                                <div className="text-[10px] text-[#666] mt-1">{stats?.pechvogel.val} Mark Miese</div>
-                            </div>
+                        <div className="concrete-wall p-4 flex flex-col items-center justify-center text-black transform rotate-1 group hover:scale-105 transition-transform">
+                            <div className="font-graffiti text-xs text-gray-500 mb-1">OPFER</div>
+                            <div className="font-headline text-3xl text-black">{stats?.pechvogel.name}</div>
+                            <div className="font-mono text-[10px] text-gray-600 border-t border-black mt-1 w-full text-center">{stats?.pechvogel.val} €</div>
                         </div>
                     </div>
 
+                    {/* --- HAUPTBEREICH (DIE MAUER) --- */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* DAS KOLLEKTIV (SPIELER) */}
-                        <div className="paper-border p-6 bg-[#2a2a2a] relative">
-                            <div className="stamp-box absolute top-4 right-4 rotate-12 text-xs">VS - Vertraulich</div>
-                            <h2 className="text-sm font-bold uppercase text-[#888] border-b border-[#444] pb-2 mb-4 tracking-widest">Das Kollektiv</h2>
-                            
+                        
+                        {/* SPIELERLISTE */}
+                        <div className="concrete-wall p-6 min-h-[300px]">
+                            <h2 className="font-graffiti text-3xl text-black mb-6 transform -rotate-2 inline-block border-b-4 border-[#ff0033]">
+                                DIE ATZEN
+                            </h2>
                             <div className="space-y-3">
                                 {players.map((p, i) => (
-                                    <div key={i} className="flex justify-between items-center border border-[#444] p-2 bg-[#222]">
+                                    <div key={i} className="flex justify-between items-center bg-white/50 border-2 border-black p-2 shadow-md">
                                         <div className="flex items-center gap-3">
-                                            <button onClick={() => kickPlayer(i)} className="text-[#444] hover:text-[#cc0000] font-mono text-xs">[X]</button>
-                                            
-                                            {/* Trabi-Farben Avatare */}
-                                            <div className={`w-8 h-8 flex items-center justify-center font-bold text-xs text-black border border-white/20 shadow-inner ${['bg-[#789f58]', 'bg-[#6a9bc3]', 'bg-[#e5dcb3]', 'bg-[#a63d40]'][i % 4]}`}>
-                                                {p.name.substring(0,2).toUpperCase()}
+                                            <button onClick={() => kickPlayer(i)} className="text-black hover:text-red-600 font-bold px-2">X</button>
+                                            <div className={`w-8 h-8 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs text-white ${['bg-purple-600', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500'][i % 4]}`}>
+                                                {p.name.substring(0,2)}
                                             </div>
-                                            
-                                            <span className="font-bold text-[#ccc] font-mono">{p.name}</span>
+                                            <span className="font-headline text-xl text-black uppercase">{p.name}</span>
                                         </div>
-                                        <div className={`font-mono font-bold ${p.points >= 0 ? 'text-[#e6b800]' : 'text-[#cc0000]'}`}>
-                                            {(p.points / 100).toFixed(2)} M
-                                        </div>
+                                        <span className={`font-mono font-bold text-lg ${p.points >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {(p.points / 100).toFixed(2)}
+                                        </span>
                                     </div>
                                 ))}
-                                
                                 {players.length < 6 && (
-                                    <div className="flex gap-2 pt-2 mt-2 border-t border-dashed border-[#444]">
-                                        <input 
-                                            className="flex-1 bg-[#222] border border-[#444] text-[#ddd] font-mono px-3 py-2 text-sm focus:border-[#e6b800] outline-none placeholder-[#555]" 
-                                            value={name} 
-                                            onChange={e => setName(e.target.value)} 
-                                            onKeyDown={e => e.key === 'Enter' && addPlayer()}
-                                            placeholder="Genosse..." 
-                                        />
-                                        <button onClick={addPlayer} className="bg-[#444] text-[#ddd] px-3 text-xs hover:bg-[#555] uppercase border border-[#666]">
-                                            Aufnehmen
-                                        </button>
+                                    <div className="flex gap-2 mt-4">
+                                        <input className="flex-1 bg-transparent border-b-4 border-black font-graffiti text-black text-xl placeholder-gray-500 outline-none px-2" value={name} onChange={e => setName(e.target.value)} placeholder="Wer noch?" onKeyDown={e => e.key === 'Enter' && addPlayer()} />
+                                        <button onClick={addPlayer} className="bg-black text-white font-bold px-4 py-1 transform rotate-3 hover:rotate-0 transition-transform font-graffiti">+</button>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* BEFEHLSZENTRALE */}
-                        <div className="space-y-6">
+                        {/* STEUERUNG */}
+                        <div className="flex flex-col gap-6">
+                            {/* Mode Switcher */}
+                            <div className="bg-black p-2 flex gap-2 rounded-lg shadow-2xl border border-white/20">
+                                <button onClick={() => {setMode('normal'); setWinners([]); setLosers([]);}} className={`flex-1 py-3 font-headline text-xl tracking-wider transition-all rounded ${mode === 'normal' ? 'bg-[#ff0033] text-white' : 'text-gray-500 hover:text-white'}`}>SAUSPIEL</button>
+                                <button onClick={() => {setMode('solo'); setWinners([]); setLosers([]);}} className={`flex-1 py-3 font-headline text-xl tracking-wider transition-all rounded ${mode === 'solo' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-white'}`}>SOLO</button>
+                            </div>
+
+                            {/* Selection Grid */}
+                            <div className="concrete-wall p-4 grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="font-mono text-[10px] text-black text-center mb-2 uppercase tracking-widest">Gewinner</p>
+                                    <div className="flex flex-col gap-2">
+                                        {players.map(p => (
+                                            <button key={p.name} onClick={() => toggleWinner(p.name)} className={`py-2 font-headline uppercase border-2 border-black transition-all ${winners.includes(p.name) ? 'bg-green-500 text-white transform scale-105' : 'bg-transparent text-gray-500 opacity-50'}`}>
+                                                {p.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="font-mono text-[10px] text-black text-center mb-2 uppercase tracking-widest">Verlierer</p>
+                                    <div className="flex flex-col gap-2">
+                                        {players.map(p => (
+                                            <button key={p.name} onClick={() => toggleLoser(p.name)} className={`py-2 font-headline uppercase border-2 border-black transition-all ${losers.includes(p.name) ? 'bg-red-500 text-white transform scale-105' : 'bg-transparent text-gray-500 opacity-50'}`}>
+                                                {p.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Area */}
                             <div className="flex gap-4">
-                                <button onClick={() => {setMode('normal'); setWinners([]); setLosers([]);}} className={`flex-1 paper-border py-4 font-bold uppercase text-xs tracking-widest transition-all ${mode === 'normal' ? 'border-[#e6b800] text-[#e6b800]' : 'text-[#666]'}`}>
-                                    Sauspiel
-                                </button>
-                                <button onClick={() => {setMode('solo'); setWinners([]); setLosers([]);}} className={`flex-1 paper-border py-4 font-bold uppercase text-xs tracking-widest transition-all ${mode === 'solo' ? 'border-[#cc0000] text-[#cc0000]' : 'text-[#666]'}`}>
-                                    Solo
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <div className="flex justify-center mb-2"><AmpelManGreen className="w-8 h-8 text-[#00cc00]" /></div>
-                                    <div className="flex flex-col gap-2">
-                                        {players.map(p => (
-                                            <button key={p.name} onClick={() => toggleWinner(p.name)} className={`py-2 px-2 text-xs font-mono border-l-2 transition-all bg-[#222] text-left hover:bg-[#333] ${winners.includes(p.name) ? 'border-[#00cc00] text-[#00cc00] bg-[#00cc00]/10 pl-4' : 'border-[#444] text-[#666]'}`}>
-                                                {p.name}
-                                            </button>
-                                        ))}
-                                    </div>
+                                <div className="bg-black border-2 border-white/30 rounded w-24 flex items-center justify-center relative">
+                                    <span className="absolute top-1 left-2 text-[8px] text-gray-400">TARIF</span>
+                                    <input type="number" className="bg-transparent text-white font-headline text-2xl text-center w-full outline-none" value={points} onChange={e => setPoints(e.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-center mb-2"><AmpelManRed className="w-8 h-8 text-[#cc0000]" /></div>
-                                    <div className="flex flex-col gap-2">
-                                        {players.map(p => (
-                                            <button key={p.name} onClick={() => toggleLoser(p.name)} className={`py-2 px-2 text-xs font-mono border-l-2 transition-all bg-[#222] text-left hover:bg-[#333] ${losers.includes(p.name) ? 'border-[#cc0000] text-[#cc0000] bg-[#cc0000]/10 pl-4' : 'border-[#444] text-[#666]'}`}>
-                                                {p.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-4 items-stretch pt-2">
-                                <div className="relative w-24">
-                                    <span className="absolute top-2 left-2 text-[8px] text-[#666] uppercase">Tarif</span>
-                                    <input type="number" className="w-full h-full bg-[#1a1a1a] border border-[#444] text-[#e6b800] font-mono text-xl text-center focus:border-[#e6b800] outline-none" value={points} onChange={e => setPoints(e.target.value)} />
-                                </div>
-                                <button onClick={recordGame} className="flex-1 bg-[#cc0000] text-[#e0e0d1] font-bold text-lg hover:bg-[#aa0000] shadow-lg border-b-4 border-[#880000] active:border-b-0 active:translate-y-1 transition-all uppercase tracking-widest">
-                                    Melden
+                                <button onClick={recordGame} className="flex-1 bg-gradient-to-r from-[#ff0033] to-purple-600 text-white font-black text-2xl py-4 shadow-[4px_4px_0_white] hover:translate-y-1 hover:shadow-none transition-all uppercase italic">
+                                    EINTRAGEN
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* 5-JAHRES-PLAN (Graph) */}
+                    {/* GRAPH */}
                     {gameCount > 0 && (
-                        <div className="paper-border p-4 mt-8">
-                            <div className="flex justify-between items-center mb-4 border-b border-[#444] pb-2">
-                                <h3 className="text-xs font-bold uppercase tracking-widest text-[#888]">5-Jahres-Plan (Verlauf)</h3>
-                                <div className="text-[10px] text-[#444]">VEB Statistik</div>
-                            </div>
+                        <div className="bg-black/80 backdrop-blur border border-white/10 p-4 rounded-xl shadow-2xl">
+                            <h3 className="text-center font-mono text-xs text-gray-400 mb-4 tracking-[0.5em] uppercase">Spielverlauf</h3>
                             <div className="h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="4 4" stroke="#333" vertical={false} />
-                                        <XAxis dataKey="name" stroke="#555" fontSize={10} axisLine={false} tickLine={false} tickMargin={10} />
-                                        <YAxis stroke="#555" fontSize={10} axisLine={false} tickLine={false} tickFormatter={v => `${(v/100).toFixed(0)}`} />
-                                        <Tooltip 
-                                            contentStyle={{ backgroundColor: '#222', border: '1px solid #555', color: '#ddd', fontFamily: 'monospace' }}
-                                            itemStyle={{ fontSize: '12px' }}
-                                        />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                        <XAxis dataKey="name" stroke="#666" fontSize={10} axisLine={false} tickLine={false} />
+                                        <YAxis stroke="#666" fontSize={10} axisLine={false} tickLine={false} tickFormatter={v => `${(v/100).toFixed(0)}`} />
+                                        <Tooltip contentStyle={{ backgroundColor: '#000', border: '2px solid white', color: '#fff', fontFamily: 'monospace' }} />
                                         {players.map((p, i) => (
-                                            <Line 
-                                                key={p.name} 
-                                                type="step" 
-                                                dataKey={p.name} 
-                                                stroke={['#789f58', '#6a9bc3', '#e5dcb3', '#a63d40', '#d4a017'][i % 5]} 
-                                                strokeWidth={2} 
-                                                dot={false}
-                                                activeDot={{ r: 4, fill: '#fff' }}
-                                            />
+                                            <Line key={p.name} type="monotone" dataKey={p.name} stroke={['#ec4899', '#f97316', '#a855f7', '#06b6d4'][i % 4]} strokeWidth={3} dot={false} />
                                         ))}
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
                     )}
-                    
-                    <footer className="text-center text-[10px] text-[#444] mt-12 font-mono">
-                        Für Frieden und Sozialismus • {new Date().getFullYear()}
-                        <div className="flex gap-4 justify-center mt-2">
-                             <button onClick={undoLast} className="hover:text-[#e6b800] underline">Eingabe revidieren</button>
-                             <button onClick={() => {if(confirm("System neu starten?")) { localStorage.clear(); location.reload(); }}} className="hover:text-[#cc0000] underline">System-Reset</button>
-                        </div>
+
+                    <footer className="flex justify-center gap-6 mt-12 pb-8">
+                        <button onClick={undoLast} className="text-xs text-gray-500 hover:text-white uppercase tracking-widest">Rückgängig</button>
+                        <button onClick={() => {if(confirm("Alles löschen?")) { localStorage.clear(); location.reload(); }}} className="text-xs text-red-900 hover:text-red-500 uppercase tracking-widest">Reset</button>
                     </footer>
                 </div>
             );
