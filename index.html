@@ -13,8 +13,6 @@
     <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -23,24 +21,23 @@
         @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Russo+One&display=swap');
 
         :root {
-            --ddr-grey: #e0e0d1; /* Vergilbtes Papier / Beton */
+            --ddr-grey: #e0e0d1;
             --ddr-red: #cc0000;
             --ddr-mustard: #e6b800;
-            --ddr-blue: #0066cc; /* FDJ Blau */
+            --ddr-blue: #0066cc;
             --concrete: #2c2c2c;
         }
 
         body {
             background-color: #2a2a2a;
-            /* Beton-Look */
             background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
-            font-family: 'Courier Prime', monospace; /* Stasi-Akte Style */
+            font-family: 'Courier Prime', monospace;
             color: var(--ddr-grey);
+            overflow-x: hidden;
         }
 
         .font-propaganda { font-family: 'Russo One', sans-serif; }
         
-        /* Stempel-Effekt für Boxen */
         .paper-border {
             border: 2px solid #555;
             background-color: #333;
@@ -60,14 +57,34 @@
             mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><filter id='noise'><feTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='1' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23noise)' opacity='0.5'/></svg>");
         }
         
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1a1a1a; }
-        ::-webkit-scrollbar-thumb { background: #555; border: 1px solid #000; }
-
-        .ampel-walk {
-            animation: walk 1s steps(2) infinite;
+        /* FLAG RAISING ANIMATION */
+        @keyframes hoist {
+            0% { transform: translateY(110%); }
+            100% { transform: translateY(0); }
         }
-        @keyframes walk { 0% { transform: rotate(0deg); } 50% { transform: rotate(5deg); } }
+        
+        @keyframes fadeInRed {
+            0% { background-color: rgba(0,0,0,0); }
+            100% { background-color: rgba(100,0,0,0.4); }
+        }
+
+        @keyframes textRise {
+            0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .animate-hoist {
+            animation: hoist 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        
+        .animate-fade-red {
+            animation: fadeInRed 0.5s forwards;
+        }
+
+        .animate-text-rise {
+            animation: textRise 1s ease-out 0.5s forwards;
+            opacity: 0;
+        }
     </style>
 </head>
 <body class="min-h-screen pb-24">
@@ -76,7 +93,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- OST-BERLIN ICONS ---
+        // --- CUSTOM ICONS ---
         
         const AmpelManGreen = ({ className }) => (
             <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -96,7 +113,6 @@
                 <rect x="3" y="12" width="18" height="6" rx="2" />
                 <circle cx="6" cy="18" r="2" />
                 <circle cx="18" cy="18" r="2" />
-                <path d="M6 12v-2" /><path d="M18 12v-2" />
             </svg>
         );
 
@@ -109,7 +125,47 @@
             </svg>
         );
 
-        // --- COMPONENTS ---
+        // --- THE FLAG COMPONENT ---
+        const FlagRaising = ({ onComplete }) => {
+            useEffect(() => {
+                const t = setTimeout(onComplete, 3500); // Animation Dauer
+                return () => clearTimeout(t);
+            }, [onComplete]);
+
+            return (
+                <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none animate-fade-red backdrop-blur-sm">
+                    {/* Background Rays */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-500/10 via-transparent to-transparent"></div>
+                    
+                    {/* Slogan */}
+                    <div className="absolute top-1/4 w-full text-center animate-text-rise z-20">
+                        <h1 className="text-4xl md:text-6xl font-propaganda text-[#e6b800] drop-shadow-[0_4px_0_#000] uppercase tracking-widest leading-tight">
+                            Für Frieden und<br/>Sozialismus!
+                        </h1>
+                        <p className="font-mono text-[#cc0000] bg-black inline-block px-4 py-1 mt-4">PLAN ERFÜLLT</p>
+                    </div>
+
+                    {/* Pole */}
+                    <div className="w-2 md:w-4 h-full bg-gray-600 border-x border-gray-800 relative z-10"></div>
+
+                    {/* Flag Container - Moves Up */}
+                    <div className="absolute bottom-10 animate-hoist flex flex-col items-start z-10" style={{ left: '50%' }}>
+                        {/* The Flag SVG */}
+                        <svg width="300" height="200" viewBox="0 0 300 200" className="ml-1 drop-shadow-2xl">
+                            {/* Red Flag Cloth */}
+                            <path d="M0,0 C100,20 200,-20 300,0 V180 C200,160 100,200 0,180 Z" fill="#cc0000" />
+                            
+                            {/* Hammer & Sickle (Stylized) */}
+                            <g transform="translate(40, 30) scale(0.6)">
+                                <path fill="#e6b800" d="M50,10 L60,10 L55,40 L80,40 L80,50 L55,50 L55,80 L45,80 L45,50 L20,50 L20,40 L45,40 Z" /> {/* Hammerish */}
+                                <path fill="none" stroke="#e6b800" strokeWidth="8" d="M30,80 C10,60 10,20 40,10" /> {/* Sickleish */}
+                                <path fill="#e6b800" d="M50,0 L53,10 L62,10 L55,18 L58,28 L50,22 L42,28 L45,18 L38,10 L47,10 Z" transform="translate(30,-15)"/> {/* Star */}
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            );
+        };
 
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -135,6 +191,7 @@
             const [mode, setMode] = useState('normal'); 
             const [gameCount, setGameCount] = useState(0);
             const [toast, setToast] = useState(null); 
+            const [showFlag, setShowFlag] = useState(false); // STATE FOR FLAG ANIMATION
 
             useEffect(() => {
                 const check = setInterval(() => {
@@ -194,15 +251,6 @@
 
             const showToast = (msg, type = 'success') => setToast({ msg, type });
 
-            const triggerConfetti = () => {
-                window.confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    colors: ['#000000', '#FF0000', '#FFCC00'], // Schwarz-Rot-Gold
-                    origin: { y: 0.6 }
-                });
-            };
-
             const addPlayer = () => {
                 if (!name.trim() || players.length >= 6) return showToast("Kollektiv ist voll!", "error");
                 setPlayers([...players, { name: name.trim(), points: 0, history: [{ round: 0, val: 0 }] }]);
@@ -252,8 +300,10 @@
                 setPlayers(newPlayers);
                 setGameCount(nextRound);
                 setWinners([]); setLosers([]);
-                triggerConfetti();
-                showToast("Planerfüllung bestätigt!");
+                
+                // HIER IST DIE ÄNDERUNG: KEIN KONFETTI, SONDERN FAHNE
+                setShowFlag(true); 
+                // showToast wird nicht benötigt, die Fahne sagt alles
             };
 
             const undoLast = () => {
@@ -293,6 +343,7 @@
             return (
                 <div className="max-w-4xl mx-auto p-4 space-y-8">
                     {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+                    {showFlag && <FlagRaising onComplete={() => setShowFlag(false)} />}
 
                     {/* HEADER */}
                     <header className="flex flex-col items-center py-6 border-b-2 border-dashed border-[#555]">
