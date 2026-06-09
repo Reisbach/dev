@@ -200,7 +200,7 @@
                         else if (losers.length === 1 && winners.includes(p.name)) change = val;
                     }
                     if (change !== 0) {
-                        roundLogs.push({ name: p.name, change: change, round: nextRound, mode: mode });
+                        roundLogs.push({ name: p.name, change: change, round: nextRound, mode: mode, winners: [...winners], losers: [...losers] });
                     }
                     const newVal = p.points + change;
                     return { ...p, points: newVal, history: [...p.history, { round: nextRound, val: newVal }] };
@@ -234,6 +234,40 @@
             // TOP 5 WINS & LOSSES
             const topWins = [...gameLogs].filter(l => l.change > 0).sort((a, b) => b.change - a.change).slice(0, 5);
             const topLosses = [...gameLogs].filter(l => l.change < 0).sort((a, b) => a.change - b.change).slice(0, 5);
+
+            // ── DUO & SOLO-GEGNER STATISTIKEN ──────────────────────────────
+            const duoMap = {};
+            const soloMatchupMap = {};
+            const uniqueRounds = {};
+            gameLogs.forEach(log => {
+                if (!uniqueRounds[log.round]) uniqueRounds[log.round] = log;
+            });
+            Object.values(uniqueRounds).forEach(log => {
+                const { round, mode, winners: W, losers: L } = log;
+                if (!W || !L) return;
+                if (mode === 'normal') {
+                    [{ pair: [...W].sort(), won: true }, { pair: [...L].sort(), won: false }].forEach(({ pair, won }) => {
+                        if (pair.length !== 2) return;
+                        const key = pair.join('|||');
+                        if (!duoMap[key]) duoMap[key] = { p1: pair[0], p2: pair[1], games: 0, wins: 0 };
+                        duoMap[key].games++;
+                        if (won) duoMap[key].wins++;
+                    });
+                }
+                if (mode === 'solo') {
+                    let soloist, group, soloWon;
+                    if (W.length === 1) { soloist = W[0]; group = L; soloWon = true; }
+                    else { soloist = L[0]; group = W; soloWon = false; }
+                    group.forEach(opponent => {
+                        const key = [soloist, opponent].sort().join('|||');
+                        if (!soloMatchupMap[key]) soloMatchupMap[key] = { soloist, opponent, games: 0, soloistWins: 0 };
+                        soloMatchupMap[key].games++;
+                        if (soloWon) soloMatchupMap[key].soloistWins++;
+                    });
+                }
+            });
+            const duoStats = Object.values(duoMap).sort((a, b) => b.games - a.games);
+            const soloMatchups = Object.values(soloMatchupMap).sort((a, b) => b.games - a.games);
 
             // Lobby View
             if (!roomCode) {
@@ -510,6 +544,107 @@
                                     );
                                 })}
                             </div>
+                        </div>
+                    )}
+
+                    {/* ── DUO / MITSPIELERN STATISTIKEN ── */}
+                    {(duoStats.length > 0 || soloMatchups.length > 0) && (
+                        <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-slate-800/60 space-y-6">
+                            <h3 className="text-xs font-heading font-bold uppercase text-slate-400 tracking-widest text-center md:text-left">Chemie-Analyse / Mitspielern-Quoten</h3>
+
+                            {/* SAUSPIEL DUOS */}
+                            {duoStats.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                        <p className="text-[10px] font-heading font-bold uppercase text-emerald-400 tracking-widest">Sauspiel-Duos</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {duoStats.map((d, i) => {
+                                            const rate = Math.round((d.wins / d.games) * 100);
+                                            const isHot = rate >= 60;
+                                            const isCold = rate <= 40;
+                                            return (
+                                                <div key={i} className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 hover:border-slate-800 transition-all px-4 py-3 rounded-2xl">
+                                                    {/* Avatar-Duo */}
+                                                    <div className="flex -space-x-2 shrink-0">
+                                                        <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center text-[9px] font-bold text-slate-300">{d.p1.slice(0,2).toUpperCase()}</div>
+                                                        <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center text-[9px] font-bold text-slate-300">{d.p2.slice(0,2).toUpperCase()}</div>
+                                                    </div>
+                                                    {/* Namen */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="text-xs font-bold text-slate-300 truncate block">{d.p1} <span className="text-slate-600 font-normal">&amp;</span> {d.p2}</span>
+                                                        <span className="text-[10px] text-slate-500">{d.wins}W / {d.games - d.wins}L &middot; {d.games} Spiele</span>
+                                                    </div>
+                                                    {/* Quote + Bar */}
+                                                    <div className="text-right shrink-0">
+                                                        <span className={`font-mono font-black text-sm block ${isHot ? 'text-emerald-400' : isCold ? 'text-red-400' : 'text-slate-300'}`}>{rate}%</span>
+                                                        <div className="w-16 h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                                                            <div className={`h-full rounded-full transition-all ${isHot ? 'bg-emerald-500' : isCold ? 'bg-red-500' : 'bg-slate-500'}`} style={{ width: `${rate}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* SOLO MATCHUPS */}
+                            {soloMatchups.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                        <p className="text-[10px] font-heading font-bold uppercase text-purple-400 tracking-widest">Solo-Gegner Matchups</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {soloMatchups.map((m, i) => {
+                                            const soloRate = Math.round((m.soloistWins / m.games) * 100);
+                                            const defRate = 100 - soloRate;
+                                            return (
+                                                <div key={i} className="bg-slate-950/60 border border-slate-900 hover:border-slate-800 transition-all px-4 py-3 rounded-2xl space-y-2">
+                                                    {/* Header */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-7 h-7 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-[9px] font-bold text-purple-300">{m.soloist.slice(0,2).toUpperCase()}</div>
+                                                            <div>
+                                                                <span className="text-xs font-bold text-purple-300 block leading-tight">{m.soloist}</span>
+                                                                <span className="text-[9px] text-purple-500">Solospieler</span>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-600 font-mono">vs.</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div>
+                                                                <span className="text-xs font-bold text-slate-300 block leading-tight text-right">{m.opponent}</span>
+                                                                <span className="text-[9px] text-slate-500 text-right block">Gegner</span>
+                                                            </div>
+                                                            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-300">{m.opponent.slice(0,2).toUpperCase()}</div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Doppel-Bar Solo vs. Gegner */}
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2 text-[10px]">
+                                                            <span className="text-purple-400 font-mono font-bold w-8">{soloRate}%</span>
+                                                            <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-purple-500 rounded-full" style={{ width: `${soloRate}%` }}></div>
+                                                            </div>
+                                                            <span className="text-slate-500 text-[9px]">Solo</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-[10px]">
+                                                            <span className="text-slate-400 font-mono font-bold w-8">{defRate}%</span>
+                                                            <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-slate-500 rounded-full" style={{ width: `${defRate}%` }}></div>
+                                                            </div>
+                                                            <span className="text-slate-500 text-[9px]">Def.</span>
+                                                        </div>
+                                                        <div className="text-[9px] text-slate-600 text-right">{m.games} Begegnungen</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
