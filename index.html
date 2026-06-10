@@ -39,6 +39,8 @@
         const SUPABASE_KEY = "sb_publishable_reklbPGGESN7V2aAL059xQ_ib3jopaQ";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const DEFAULT_POINTS = { normal: '20', solo: '50' };
+
         function generateRoomCode() {
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             let code = '';
@@ -47,6 +49,22 @@
         }
         function generateOwnerToken() {
             return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        // ── Recent rooms helpers ─────────────────────────────────────────────
+        function saveRecentRoom(code) {
+            try {
+                const raw = localStorage.getItem('schafkopf_recent_rooms');
+                let rooms = raw ? JSON.parse(raw) : [];
+                rooms = [code, ...rooms.filter(r => r !== code)].slice(0, 3);
+                localStorage.setItem('schafkopf_recent_rooms', JSON.stringify(rooms));
+            } catch (_) {}
+        }
+        function getRecentRooms() {
+            try {
+                const raw = localStorage.getItem('schafkopf_recent_rooms');
+                return raw ? JSON.parse(raw) : [];
+            } catch (_) { return []; }
         }
 
         function App() {
@@ -58,12 +76,14 @@
             const [name, setName] = useState('');
             const [winners, setWinners] = useState([]);
             const [losers, setLosers] = useState([]);
-            const [points, setPoints] = useState('10');
+            const [points, setPoints] = useState(DEFAULT_POINTS.normal);
             const [mode, setMode] = useState('normal');
             const [gameCount, setGameCount] = useState(0);
             const [gameLogs, setGameLogs] = useState([]);
+            const [recentRooms, setRecentRooms] = useState([]);
 
             useEffect(() => {
+                setRecentRooms(getRecentRooms());
                 const check = setInterval(() => {
                     if (window.Recharts && window.Recharts.LineChart) {
                         setReady(true);
@@ -91,7 +111,6 @@
                 };
                 fetchState();
 
-                // Realtime channel – kein Filter im channel-Namen, nur im .on()
                 const channel = supabase
                     .channel(`room_${roomCode}`)
                     .on('postgres_changes', {
@@ -103,13 +122,11 @@
                         applyData(payload.new);
                     })
                     .subscribe((status) => {
-                        // Fallback-Polling wenn Realtime nicht verbindet (z.B. RLS blockiert)
                         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                             console.warn('Realtime nicht verfügbar, aktiviere Polling...');
                         }
                     });
 
-                // Polling alle 3s als Fallback für Zuschauer
                 const poll = setInterval(fetchState, 3000);
 
                 return () => {
@@ -128,6 +145,12 @@
                     .eq('owner_token', token);
             };
 
+            const enterRoom = (code) => {
+                saveRecentRoom(code);
+                setRecentRooms(getRecentRooms());
+                setRoomCode(code);
+            };
+
             const handleCreateRoom = async () => {
                 const newCode = generateRoomCode();
                 const token = generateOwnerToken();
@@ -135,7 +158,7 @@
                 if (!error) {
                     localStorage.setItem(`schafkopf_owner_${newCode}`, token);
                     setIsOwner(true);
-                    setRoomCode(newCode);
+                    enterRoom(newCode);
                 }
             };
 
@@ -147,9 +170,28 @@
                 if (data) {
                     const savedToken = localStorage.getItem(`schafkopf_owner_${cleanCode}`);
                     setIsOwner(savedToken === data.owner_token);
-                    setRoomCode(cleanCode);
+                    enterRoom(cleanCode);
                 } else {
                     alert("Raum-Code wurde nicht gefunden!");
+                }
+            };
+
+            const handleJoinRecent = async (code) => {
+                const { data } = await supabase.from('schafkopf_sessions').select('room_code, owner_token').eq('room_code', code).maybeSingle();
+                if (data) {
+                    const savedToken = localStorage.getItem(`schafkopf_owner_${code}`);
+                    setIsOwner(savedToken === data.owner_token);
+                    enterRoom(code);
+                } else {
+                    alert("Dieser Raum existiert nicht mehr!");
+                    // Remove from recent list
+                    try {
+                        const raw = localStorage.getItem('schafkopf_recent_rooms');
+                        let rooms = raw ? JSON.parse(raw) : [];
+                        rooms = rooms.filter(r => r !== code);
+                        localStorage.setItem('schafkopf_recent_rooms', JSON.stringify(rooms));
+                        setRecentRooms(rooms);
+                    } catch (_) {}
                 }
             };
 
@@ -166,6 +208,10 @@
                 saveToSupabase(nextPlayers, gameCount, gameLogs);
             };
 
+            const handleNameKeyDown = (e) => {
+                if (e.key === 'Enter') addPlayer();
+            };
+
             const kickPlayer = (idx) => {
                 if (!isOwner) return alert("Nur der Raumbesitzer kann Spieler entfernen!");
                 if (confirm(`${players[idx].name} wirklich entfernen?`)) {
@@ -174,6 +220,14 @@
                     setWinners([]); setLosers([]);
                     saveToSupabase(nextPlayers, gameCount, gameLogs);
                 }
+            };
+
+            // ── Mode switch: keep winners/losers, just update default points ──
+            const switchMode = (newMode) => {
+                if (!isOwner) return;
+                setMode(newMode);
+                setPoints(DEFAULT_POINTS[newMode]);
+                // winners & losers intentionally NOT reset
             };
 
             const toggleWinner = (pName) => {
@@ -279,8 +333,6 @@
                     let soloist, group, soloWon;
                     if (W.length === 1) { soloist = W[0]; group = L; soloWon = true; }
                     else { soloist = L[0]; group = W; soloWon = false; }
-                    // 1 Eintrag pro Spielerpaar (soloist vs. jeder Gegner)
-                    // Key alphabetisch sortiert damit Bene-Chris === Chris-Bene
                     group.forEach(opponent => {
                         const [pA, pB] = [soloist, opponent].sort();
                         const key = pA + '|||' + pB;
@@ -296,28 +348,61 @@
             const duoStats = Object.values(duoMap).sort((a, b) => b.games - a.games);
             const soloMatchups = Object.values(soloMatchupMap).sort((a, b) => b.games - a.games);
 
-            // Lobby View
+            // ── LOBBY VIEW ───────────────────────────────────────────────────
             if (!roomCode) {
                 return (
-                    <div className="flex items-center justify-center min-h-screen px-4">
-                        <div className="max-w-md w-full p-8 bg-slate-900/60 border border-slate-800 rounded-3xl text-center shadow-2xl backdrop-blur-xl space-y-8 relative overflow-hidden">
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div>
-                            <div className="space-y-2">
-                                <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 font-heading tracking-tight uppercase italic">Schafkopf Lobby</h1>
-                                <p className="text-slate-400 text-xs tracking-wide">Digitaler Preisskat & Schafkopf Rechner</p>
+                    <div className="flex items-center justify-center min-h-screen px-4 py-8">
+                        <div className="max-w-md w-full space-y-4">
+                            {/* Main card */}
+                            <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-3xl text-center shadow-2xl backdrop-blur-xl space-y-8 relative overflow-hidden">
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div>
+                                <div className="space-y-2">
+                                    <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 font-heading tracking-tight uppercase italic">Schafkopf Lobby</h1>
+                                    <p className="text-slate-400 text-xs tracking-wide">Digitaler Preisskat &amp; Schafkopf Rechner</p>
+                                </div>
+                                <button onClick={handleCreateRoom} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 py-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-950/40 transition-all text-xs font-heading uppercase tracking-widest active:scale-[0.99]">
+                                    Neuen Raum erstellen
+                                </button>
+                                <div className="relative flex py-2 items-center">
+                                    <div className="flex-grow border-t border-slate-800"></div>
+                                    <span className="flex-shrink mx-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest font-heading">Oder Beitreten</span>
+                                    <div className="flex-grow border-t border-slate-800"></div>
+                                </div>
+                                <form onSubmit={handleJoinRoom} className="flex flex-col gap-3">
+                                    <input className="w-full bg-slate-950/80 rounded-xl px-4 py-4 font-mono text-center tracking-widest text-2xl border border-slate-800 outline-none text-emerald-400 focus:border-emerald-500 transition-all placeholder:text-slate-700 placeholder:font-sans placeholder:text-sm placeholder:tracking-normal" maxLength="6" placeholder="Raum-Code (6-stellig)" value={inputCode} onChange={e => setInputCode(e.target.value)} />
+                                    <button type="submit" className="w-full bg-slate-800 border border-slate-700/60 py-3.5 rounded-xl font-bold hover:bg-slate-700 transition-all text-xs uppercase tracking-widest font-heading">Raum betreten</button>
+                                </form>
                             </div>
-                            <button onClick={handleCreateRoom} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 py-4 rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-950/40 transition-all text-xs font-heading uppercase tracking-widest active:scale-[0.99]">
-                                Neuen Raum erstellen
-                            </button>
-                            <div className="relative flex py-2 items-center">
-                                <div className="flex-grow border-t border-slate-800"></div>
-                                <span className="flex-shrink mx-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest font-heading">Oder Beitreten</span>
-                                <div className="flex-grow border-t border-slate-800"></div>
-                            </div>
-                            <form onSubmit={handleJoinRoom} className="flex flex-col gap-3">
-                                <input className="w-full bg-slate-950/80 rounded-xl px-4 py-4 font-mono text-center tracking-widest text-2xl border border-slate-800 outline-none text-emerald-400 focus:border-emerald-500 transition-all placeholder:text-slate-700 placeholder:font-sans placeholder:text-sm placeholder:tracking-normal" maxLength="6" placeholder="Raum-Code (6-stellig)" value={inputCode} onChange={e => setInputCode(e.target.value)} />
-                                <button type="submit" className="w-full bg-slate-800 border border-slate-700/60 py-3.5 rounded-xl font-bold hover:bg-slate-700 transition-all text-xs uppercase tracking-widest font-heading">Raum betreten</button>
-                            </form>
+
+                            {/* Recent rooms card */}
+                            {recentRooms.length > 0 && (
+                                <div className="p-5 bg-slate-900/40 border border-slate-800/60 rounded-2xl backdrop-blur-xl space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                                        <p className="text-[10px] font-heading font-bold uppercase text-slate-400 tracking-widest">Zuletzt besucht</p>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {recentRooms.map((code) => {
+                                            const isAdmin = !!localStorage.getItem(`schafkopf_owner_${code}`);
+                                            return (
+                                                <button
+                                                    key={code}
+                                                    onClick={() => handleJoinRecent(code)}
+                                                    className="flex items-center justify-between px-4 py-3 bg-slate-950/60 border border-slate-800 hover:border-slate-700 rounded-xl transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-mono font-bold text-emerald-400 text-sm tracking-widest">{code}</span>
+                                                        {isAdmin && (
+                                                            <span className="text-[9px] font-heading font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/25">Admin</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs font-heading font-bold uppercase tracking-wider">→</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -332,7 +417,7 @@
                 return row;
             });
 
-            // Main Dashboard View
+            // ── MAIN DASHBOARD VIEW ──────────────────────────────────────────
             return (
                 <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 pb-24">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-6 border-b border-slate-800/60">
@@ -369,7 +454,13 @@
                                 </div>
                                 {isOwner && players.length < 6 && (
                                     <div className="flex gap-2">
-                                        <input className="flex-1 bg-slate-950 rounded-xl px-4 py-2.5 outline-none border border-slate-800 focus:border-emerald-500 text-sm transition-colors text-slate-200" value={name} onChange={e => setName(e.target.value)} placeholder="Neuer Spielername..." />
+                                        <input
+                                            className="flex-1 bg-slate-950 rounded-xl px-4 py-2.5 outline-none border border-slate-800 focus:border-emerald-500 text-sm transition-colors text-slate-200"
+                                            value={name}
+                                            onChange={e => setName(e.target.value)}
+                                            onKeyDown={handleNameKeyDown}
+                                            placeholder="Neuer Spielername..."
+                                        />
                                         <button onClick={addPlayer} className="bg-emerald-600 px-5 rounded-xl font-bold hover:bg-emerald-500 shadow-lg shadow-emerald-900/20 active:scale-95 transition-all text-lg">+</button>
                                     </div>
                                 )}
@@ -397,8 +488,8 @@
                         {/* RECHNER TOOL */}
                         <div className="md:col-span-7 bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-slate-800/60 space-y-6">
                             <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-                                <button onClick={() => { if(isOwner){ setMode('normal'); setWinners([]); setLosers([]); }}} className={`flex-1 py-2.5 rounded-xl text-xs font-heading font-bold transition-all duration-300 ${mode === 'normal' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-400'}`}>Sauspiel</button>
-                                <button onClick={() => { if(isOwner){ setMode('solo'); setWinners([]); setLosers([]); }}} className={`flex-1 py-2.5 rounded-xl text-xs font-heading font-bold transition-all duration-300 ${mode === 'solo' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-400'}`}>Solo</button>
+                                <button onClick={() => switchMode('normal')} className={`flex-1 py-2.5 rounded-xl text-xs font-heading font-bold transition-all duration-300 ${mode === 'normal' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-400'}`}>Sauspiel</button>
+                                <button onClick={() => switchMode('solo')} className={`flex-1 py-2.5 rounded-xl text-xs font-heading font-bold transition-all duration-300 ${mode === 'solo' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-400'}`}>Solo</button>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-3">
@@ -470,13 +561,11 @@
                                     const wins = pLogs.filter(l => l.change > 0).length;
                                     const winRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(0) : 0;
 
-                                    // Solo stats
                                     const soloLogs = pLogs.filter(l => l.mode === 'solo');
                                     const totalSolo = soloLogs.length;
                                     const soloWins = soloLogs.filter(l => l.change > 0).length;
                                     const soloRate = totalSolo > 0 ? ((soloWins / totalSolo) * 100).toFixed(0) : null;
 
-                                    // Sauspiel stats
                                     const sausLogs = pLogs.filter(l => l.mode === 'normal');
                                     const totalSaus = sausLogs.length;
                                     const sausWins = sausLogs.filter(l => l.change > 0).length;
@@ -490,15 +579,12 @@
                                     return (
                                         <div key={p.name} className="bg-slate-950/60 border border-slate-900 p-4 rounded-2xl relative overflow-hidden hover:border-slate-800 transition-all">
                                             <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: playerColor }}></div>
-                                            {/* Header */}
                                             <div className="flex justify-between items-center mb-3 pl-2">
                                                 <span className="font-heading font-bold text-sm text-slate-200">{p.name}</span>
                                                 <span className={`font-mono font-bold text-xs ${p.points >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                     {(p.points / 100).toFixed(2)}€
                                                 </span>
                                             </div>
-
-                                            {/* Gesamt Stats – 4 Spalten: Spiele, Quote, Solo, Sauspiel */}
                                             <div className="grid grid-cols-4 gap-1 pl-2 mb-3">
                                                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-900/60 text-center text-[11px] text-slate-400">
                                                     <span className="block font-mono font-bold text-slate-200 text-sm">{totalGames}</span>
@@ -517,10 +603,7 @@
                                                     Saus.
                                                 </div>
                                             </div>
-
-                                            {/* Solo & Sauspiel Quoten */}
                                             <div className="grid grid-cols-2 gap-1.5 pl-2 mb-3">
-                                                {/* Solo Quote */}
                                                 <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-2.5 text-[10px]">
                                                     <div className="flex items-center gap-1.5 mb-1">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
@@ -545,8 +628,6 @@
                                                         )}
                                                     </div>
                                                 </div>
-
-                                                {/* Sauspiel Quote */}
                                                 <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-2.5 text-[10px]">
                                                     <div className="flex items-center gap-1.5 mb-1">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
@@ -572,8 +653,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {/* Max Win / Loss */}
                                             <div className="flex justify-between items-center pt-2 border-t border-slate-900/60 pl-2 text-[10px] text-slate-500">
                                                 <span>Max Win: <strong className="text-emerald-500 font-mono">+{(maxWin / 100).toFixed(2)}€</strong></span>
                                                 <span>Max Loss: <strong className="text-red-500 font-mono">{(maxLoss / 100).toFixed(2)}€</strong></span>
@@ -589,8 +668,6 @@
                     {(duoStats.length > 0 || soloMatchups.length > 0) && (
                         <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-slate-800/60 space-y-6">
                             <h3 className="text-xs font-heading font-bold uppercase text-slate-400 tracking-widest text-center md:text-left">Chemie-Analyse / Mitspielern-Quoten</h3>
-
-                            {/* SAUSPIEL DUOS */}
                             {duoStats.length > 0 && (
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2">
@@ -604,17 +681,14 @@
                                             const isCold = rate <= 40;
                                             return (
                                                 <div key={i} className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 hover:border-slate-800 transition-all px-4 py-3 rounded-2xl">
-                                                    {/* Avatar-Duo */}
                                                     <div className="flex -space-x-2 shrink-0">
                                                         <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center text-[9px] font-bold text-slate-300">{d.p1.slice(0,2).toUpperCase()}</div>
                                                         <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center text-[9px] font-bold text-slate-300">{d.p2.slice(0,2).toUpperCase()}</div>
                                                     </div>
-                                                    {/* Namen */}
                                                     <div className="flex-1 min-w-0">
                                                         <span className="text-xs font-bold text-slate-300 truncate block">{d.p1} <span className="text-slate-600 font-normal">&amp;</span> {d.p2}</span>
                                                         <span className="text-[10px] text-slate-500">{d.wins}W / {d.games - d.wins}L &middot; {d.games} Spiele</span>
                                                     </div>
-                                                    {/* Quote + Bar */}
                                                     <div className="text-right shrink-0">
                                                         <span className={`font-mono font-black text-sm block ${isHot ? 'text-emerald-400' : isCold ? 'text-red-400' : 'text-slate-300'}`}>{rate}%</span>
                                                         <div className="w-16 h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
@@ -627,8 +701,6 @@
                                     </div>
                                 </div>
                             )}
-
-                            {/* SOLO H2H MATCHUPS */}
                             {soloMatchups.length > 0 && (
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2">
@@ -644,7 +716,6 @@
                                             const leader = m.wins_pA > m.wins_pB ? m.pA : m.wins_pB > m.wins_pA ? m.pB : null;
                                             return (
                                                 <div key={i} className="bg-slate-950/60 border border-slate-900 hover:border-slate-800 transition-all px-4 py-3 rounded-2xl space-y-2.5">
-                                                    {/* pA  score  pB */}
                                                     <div className="flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${leader === m.pA ? 'bg-purple-500/30 border border-purple-400/50 text-purple-200' : 'bg-slate-800 border border-slate-700 text-slate-300'}`}>{m.pA.slice(0,2).toUpperCase()}</div>
@@ -660,7 +731,6 @@
                                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${leader === m.pB ? 'bg-purple-500/30 border border-purple-400/50 text-purple-200' : 'bg-slate-800 border border-slate-700 text-slate-300'}`}>{m.pB.slice(0,2).toUpperCase()}</div>
                                                         </div>
                                                     </div>
-                                                    {/* Geteilter Balken */}
                                                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden flex">
                                                         <div className="h-full bg-purple-500 transition-all rounded-l-full" style={{ width: `${barA}%` }}></div>
                                                         <div className="h-full bg-slate-600 transition-all rounded-r-full" style={{ width: `${barB}%` }}></div>
@@ -682,7 +752,6 @@
                     {/* TOP 5 GEWINNE & VERLUSTE */}
                     {gameLogs.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* TOP 5 GEWINNE */}
                             <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-slate-800/60 space-y-4">
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -712,8 +781,6 @@
                                     </div>
                                 )}
                             </div>
-
-                            {/* TOP 5 VERLUSTE */}
                             <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-slate-800/60 space-y-4">
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
